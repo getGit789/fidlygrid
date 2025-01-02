@@ -225,7 +225,7 @@ export default function TaskList({
 
   return (
     <div className="space-y-4">
-      {(category === "My Tasks" && showInput) && (
+      {(category === "My Tasks" || category === "Tasks") && showInput && (
         <Card style={{ background: 'var(--card-bg)' }}>
           <CardContent className="pt-4">
             <form
