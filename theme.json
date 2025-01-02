@@ -1,0 +1,7 @@
+{
+  "variant": "professional",
+  "primary": "hsl(24, 84%, 54%)",
+  "appearance": "dark",
+  "radius": 0.5,
+  "allowThemeToggle": true
+}
