@@ -1,12 +1,11 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 import { db } from "../db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { sql } from 'drizzle-orm';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,12 +15,13 @@ const PORT = parseInt(process.env.PORT || "8080", 10);
 const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
 
 const server = app.listen(PORT, HOST, () => {
-  log(`Server running in ${process.env.NODE_ENV} mode on http://${HOST}:${PORT}`);
+  console.log(`Server running in ${process.env.NODE_ENV} mode on http://${HOST}:${PORT}`);
 });
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -40,20 +40,16 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
-      log(logLine);
+      console.log(logLine);
     }
   });
-
   next();
 });
 
 async function main() {
-  // Check if tables exist before running migrations
   try {
     console.log("Checking database state...");
     const tablesExist = await db.execute(sql`
@@ -73,7 +69,6 @@ async function main() {
     }
   } catch (error) {
     console.error("Database setup error:", error);
-    // Continue anyway since tables might exist
   }
 
   try {
@@ -82,21 +77,22 @@ async function main() {
     // Register API routes
     registerRoutes(app);
 
-    if (app.get("env") === "development") {
-      // Setup Vite development server
+    if (process.env.NODE_ENV === 'development') {
+      // In development, use Vite's dev server
+      const { setupVite } = await import('./vite');
       await setupVite(app, server);
     } else {
-      // Serve static files in production
-      const clientDist = path.join(__dirname, '../dist');
-      app.use(express.static(clientDist));
+      // In production, serve static files
+      const distPath = path.resolve(__dirname, '..', 'dist', 'public');
+      app.use(express.static(distPath));
       
       // Handle client-side routing
       app.get('*', (req, res) => {
-        res.sendFile(path.join(clientDist, 'index.html'));
+        res.sendFile(path.join(distPath, 'index.html'));
       });
     }
 
-    console.log(`Server running in ${app.get("env")} mode`);
+    console.log(`Server running in ${process.env.NODE_ENV} mode`);
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
