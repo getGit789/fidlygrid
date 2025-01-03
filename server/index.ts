@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { db } from "../db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { sql } from 'drizzle-orm';
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
@@ -40,13 +41,27 @@ app.use((req, res, next) => {
 });
 
 async function main() {
-  // Run migrations
+  // Check if tables exist before running migrations
   try {
-    console.log("Running migrations...");
-    await migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("Migrations completed");
+    console.log("Checking database state...");
+    const tablesExist = await db.execute(sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'goals'
+      );
+    `);
+    
+    if (!tablesExist[0].exists) {
+      console.log("Tables don't exist, running migrations...");
+      await migrate(db, { migrationsFolder: "./drizzle" });
+      console.log("Migrations completed successfully");
+    } else {
+      console.log("Tables already exist, skipping migrations");
+    }
   } catch (error) {
-    console.error("Error running migrations:", error);
+    console.error("Database setup error:", error);
+    // Continue anyway since tables might exist
   }
 
   // Setup routes and middleware
