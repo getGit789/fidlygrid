@@ -12,9 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = parseInt(process.env.PORT || "3000", 10);
-const server = app.listen(PORT, "0.0.0.0", () => {
-  log(`Server running on http://localhost:${PORT}`);
+const PORT = parseInt(process.env.PORT || "8080", 10);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+const server = app.listen(PORT, HOST, () => {
+  log(`Server running in ${process.env.NODE_ENV} mode on http://${HOST}:${PORT}`);
 });
 
 app.use(express.json({ limit: '50mb' }));
