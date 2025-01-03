@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "@db";
-import { tasks, goals, workspaces } from "@db/schema";
+import { db } from "../db";
+import { tasks, goals, workspaces } from "../db/schema";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
@@ -84,6 +84,10 @@ export function registerRoutes(app: Express): Server {
   app.post("/api/tasks", async (req, res) => {
     try {
       const { title, category } = req.body;
+      if (!title || !category) {
+        return res.status(400).json({ error: "Title and category are required" });
+      }
+      
       const [task] = await db
         .insert(tasks)
         .values({ 
@@ -97,8 +101,12 @@ export function registerRoutes(app: Express): Server {
         .returning();
       res.json(task);
     } catch (error) {
-      console.error("Error creating task:", error);
-      res.status(500).json({ error: "Failed to create task" });
+      console.error("Error creating task:", {
+        error,
+        body: req.body,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      res.status(500).json({ error: "Failed to create task", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 

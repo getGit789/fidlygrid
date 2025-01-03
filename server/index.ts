@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { db } from "@db/index";
+import { db } from "../db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 const app = express();
@@ -56,9 +56,8 @@ async function main() {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    console.error("Server Error:", err);
+    res.status(status).json({ message, error: err.toString() });
   });
 
   if (app.get("env") === "development") {
