@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes.js";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
-import { db } from "../db";
+import { db } from "../db/index.js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { sql } from 'drizzle-orm';
 
@@ -79,7 +79,7 @@ async function main() {
 
     if (process.env.NODE_ENV === 'development') {
       // In development, use Vite's dev server
-      const { setupVite } = await import('./vite');
+      const { setupVite } = await import('./vite.js');
       await setupVite(app, server);
     } else {
       // In production, serve static files

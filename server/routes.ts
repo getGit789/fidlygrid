@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "../db";
-import { tasks, goals, workspaces } from "../db/schema";
+import { db } from "../db/index.js";
+import { tasks, goals, workspaces } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
