@@ -48,6 +48,21 @@ async function initializeDb() {
   }
 }
 
-const db = await initializeDb();
+let db: ReturnType<typeof drizzle>;
+
+// Initialize db synchronously
+try {
+  db = drizzle(client, { schema });
+  console.log("Initial database connection established");
+  
+  // Test connection asynchronously
+  testConnection().catch(error => {
+    console.error("Database connection test failed:", error);
+    process.exit(1);
+  });
+} catch (error) {
+  console.error("Failed to initialize database:", error);
+  throw error;
+}
 
 export { db };
