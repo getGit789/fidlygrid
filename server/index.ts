@@ -83,7 +83,7 @@ async function main() {
       await setupVite(app, server);
     } else {
       // In production, serve static files
-      const publicPath = path.resolve(__dirname, '../public');
+      const publicPath = path.resolve(__dirname, '../../dist/public');
       console.log('Serving static files from:', publicPath);
       app.use(express.static(publicPath));
       
