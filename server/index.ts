@@ -5,8 +5,18 @@ import { setupVite, serveStatic, log } from "./vite";
 import { db } from "../db";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { sql } from 'drizzle-orm';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = parseInt(process.env.PORT || "3000", 10);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  log(`Server running on http://localhost:${PORT}`);
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
@@ -64,27 +74,31 @@ async function main() {
     // Continue anyway since tables might exist
   }
 
-  // Setup routes and middleware
-  app.use(express.json());
-  registerRoutes(app);
+  try {
+    console.log("Database check complete");
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    console.error("Server Error:", err);
-    res.status(status).json({ message, error: err.toString() });
-  });
+    // Register API routes
+    registerRoutes(app);
 
-  if (app.get("env") === "development") {
-    await setupVite(app, registerRoutes(app));
-  } else {
-    serveStatic(app);
+    if (app.get("env") === "development") {
+      // Setup Vite development server
+      await setupVite(app, server);
+    } else {
+      // Serve static files in production
+      const clientDist = path.join(__dirname, '../dist');
+      app.use(express.static(clientDist));
+      
+      // Handle client-side routing
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(clientDist, 'index.html'));
+      });
+    }
+
+    console.log(`Server running in ${app.get("env")} mode`);
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   }
-
-  const PORT = parseInt(process.env.PORT || "5000", 10);
-  app.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
-  });
 }
 
 main().catch(console.error);
