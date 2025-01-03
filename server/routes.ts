@@ -82,12 +82,18 @@ export function registerRoutes(app: Express): Server {
   });
 
   app.post("/api/tasks", async (req, res) => {
+    console.log("Received task creation request:", req.body);
     try {
       const { title, category } = req.body;
       if (!title || !category) {
-        return res.status(400).json({ error: "Title and category are required" });
+        console.log("Validation failed:", { title, category });
+        return res.status(400).json({ 
+          error: "Title and category are required",
+          received: { title, category }
+        });
       }
       
+      console.log("Attempting to insert task:", { title, category });
       const [task] = await db
         .insert(tasks)
         .values({ 
@@ -99,14 +105,20 @@ export function registerRoutes(app: Express): Server {
           workspaceId: null
         })
         .returning();
+      console.log("Task created successfully:", task);
       res.json(task);
     } catch (error) {
       console.error("Error creating task:", {
         error,
         body: req.body,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        message: error instanceof Error ? error.message : "Unknown error"
       });
-      res.status(500).json({ error: "Failed to create task", details: error instanceof Error ? error.message : "Unknown error" });
+      res.status(500).json({ 
+        error: "Failed to create task", 
+        details: error instanceof Error ? error.message : "Unknown error",
+        requestBody: req.body
+      });
     }
   });
 
