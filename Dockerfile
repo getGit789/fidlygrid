@@ -21,8 +21,9 @@ COPY tailwind.config.ts ./
 COPY postcss.config.js ./
 COPY theme.json ./
 
-# Build the client
+# Build the client and server
 RUN npm run build
+RUN npx tsc --project tsconfig.json
 
 # Production stage
 FROM node:18-alpine
@@ -33,12 +34,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy server source and built client files
-COPY server/ ./server/
-COPY db/ ./db/
+# Copy built files
+COPY --from=builder /app/dist/public ./dist/public
+COPY --from=builder /app/dist/server ./dist/server
+COPY --from=builder /app/dist/db ./dist/db
 COPY drizzle/ ./drizzle/
 COPY drizzle.config.ts ./
-COPY --from=builder /app/dist/public ./dist/public
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -48,4 +49,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Start the application
-CMD ["node", "--experimental-json-modules", "--es-module-specifier-resolution=node", "server/index.ts"]
+CMD ["node", "dist/server/index.js"]
