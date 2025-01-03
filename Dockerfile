@@ -37,4 +37,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "dist/server/index.js"]
