@@ -85,6 +85,8 @@ export function registerRoutes(app: Express): Server {
     console.log("Received task creation request:", req.body);
     try {
       const { title, category } = req.body;
+      
+      // Validate input
       if (!title || !category) {
         console.log("Validation failed:", { title, category });
         return res.status(400).json({ 
@@ -93,30 +95,59 @@ export function registerRoutes(app: Express): Server {
         });
       }
       
-      console.log("Attempting to insert task:", { title, category });
-      const [task] = await db
-        .insert(tasks)
-        .values({ 
-          title, 
-          category,
-          completed: false,
-          favorite: false,
-          deleted: false,
-          workspaceId: null
-        })
-        .returning();
-      console.log("Task created successfully:", task);
-      res.json(task);
+      // Log the exact SQL query
+      console.log("Attempting to insert task with values:", { 
+        title, 
+        category,
+        completed: false,
+        favorite: false,
+        deleted: false,
+        workspaceId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Attempt database insert
+      try {
+        const [task] = await db
+          .insert(tasks)
+          .values({ 
+            title, 
+            category,
+            completed: false,
+            favorite: false,
+            deleted: false,
+            workspaceId: null
+          })
+          .returning();
+        console.log("Task created successfully:", task);
+        res.json(task);
+      } catch (dbError) {
+        console.error("Database error during task creation:", {
+          error: dbError,
+          errorName: dbError.name,
+          errorCode: dbError.code,
+          detail: dbError.detail,
+          table: dbError.table,
+          constraint: dbError.constraint,
+          stack: dbError.stack
+        });
+        throw dbError;
+      }
     } catch (error) {
       console.error("Error creating task:", {
         error,
+        type: error.constructor.name,
         body: req.body,
-        stack: error instanceof Error ? error.stack : undefined,
-        message: error instanceof Error ? error.message : "Unknown error"
+        stack: error.stack,
+        message: error.message,
+        code: error.code,
+        detail: error.detail
       });
       res.status(500).json({ 
         error: "Failed to create task", 
-        details: error instanceof Error ? error.message : "Unknown error",
+        details: error.message,
+        code: error.code,
         requestBody: req.body
       });
     }
