@@ -25,7 +25,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 # Copy built files and necessary configs
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/dist/server ./dist/server
+COPY --from=builder /app/dist/public ./public
 COPY --from=builder /app/db ./db
 COPY drizzle/ ./drizzle/
 COPY drizzle.config.ts ./

@@ -83,12 +83,13 @@ async function main() {
       await setupVite(app, server);
     } else {
       // In production, serve static files
-      const distPath = path.resolve(__dirname, '..', 'dist', 'public');
-      app.use(express.static(distPath));
+      const publicPath = path.resolve(__dirname, '../public');
+      console.log('Serving static files from:', publicPath);
+      app.use(express.static(publicPath));
       
       // Handle client-side routing
       app.get('*', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
+        res.sendFile(path.join(publicPath, 'index.html'));
       });
     }
 
