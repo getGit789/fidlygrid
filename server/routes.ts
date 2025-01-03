@@ -6,6 +6,18 @@ import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import archiver from "archiver";
+import { PostgresError } from "postgres";
+
+interface ErrorWithDetails {
+  name?: string;
+  code?: string;
+  detail?: string;
+  table?: string;
+  constraint?: string;
+  stack?: string;
+  message?: string;
+  constructor?: { name: string };
+}
 
 export function registerRoutes(app: Express): Server {
   // Download project endpoint
@@ -123,31 +135,33 @@ export function registerRoutes(app: Express): Server {
         console.log("Task created successfully:", task);
         res.json(task);
       } catch (dbError) {
+        const err = dbError as ErrorWithDetails;
         console.error("Database error during task creation:", {
-          error: dbError,
-          errorName: dbError.name,
-          errorCode: dbError.code,
-          detail: dbError.detail,
-          table: dbError.table,
-          constraint: dbError.constraint,
-          stack: dbError.stack
+          error: err,
+          errorName: err.name,
+          errorCode: err.code,
+          detail: err.detail,
+          table: err.table,
+          constraint: err.constraint,
+          stack: err.stack
         });
-        throw dbError;
+        throw err;
       }
     } catch (error) {
+      const err = error as ErrorWithDetails;
       console.error("Error creating task:", {
-        error,
-        type: error.constructor.name,
+        error: err,
+        type: err.constructor?.name,
         body: req.body,
-        stack: error.stack,
-        message: error.message,
-        code: error.code,
-        detail: error.detail
+        stack: err.stack,
+        message: err.message,
+        code: err.code,
+        detail: err.detail
       });
       res.status(500).json({ 
         error: "Failed to create task", 
-        details: error.message,
-        code: error.code,
+        details: err.message,
+        code: err.code,
         requestBody: req.body
       });
     }
