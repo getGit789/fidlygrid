@@ -9,7 +9,7 @@ export function registerRoutes(app: Express) {
       console.log("Fetching tasks...");
       const result = await sql`
         SELECT * FROM tasks 
-        WHERE deleted = false 
+        WHERE is_deleted = false 
         ORDER BY created_at DESC
       `;
       console.log("Tasks fetched:", result);
@@ -45,9 +45,9 @@ export function registerRoutes(app: Express) {
         INSERT INTO tasks (
           title, 
           category, 
-          completed, 
-          favorite, 
-          deleted
+          is_completed, 
+          is_favorite, 
+          is_deleted
         ) VALUES (
           ${title}, 
           ${category}, 
@@ -82,7 +82,7 @@ export function registerRoutes(app: Express) {
       console.log("Fetching goals...");
       const result = await sql`
         SELECT * FROM goals 
-        WHERE deleted = false 
+        WHERE is_deleted = false 
         ORDER BY created_at DESC
       `;
       console.log("Goals fetched:", result);
@@ -118,9 +118,9 @@ export function registerRoutes(app: Express) {
         INSERT INTO goals (
           title, 
           category, 
-          completed, 
-          favorite, 
-          deleted
+          is_completed, 
+          is_favorite, 
+          is_deleted
         ) VALUES (
           ${title}, 
           ${category}, 
