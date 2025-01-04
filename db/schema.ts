@@ -1,12 +1,5 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-
-export const workspaces = pgTable("workspaces", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
 
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -15,8 +8,6 @@ export const tasks = pgTable("tasks", {
   completed: boolean("completed").default(false),
   isFavorite: boolean("is_favorite").default(false),
   isDeleted: boolean("is_deleted").default(false),
-  category: text("category").notNull().default('Tasks'),
-  workspaceId: integer("workspace_id").references(() => workspaces.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -28,7 +19,6 @@ export const goals = pgTable("goals", {
   completed: boolean("completed").default(false),
   isFavorite: boolean("is_favorite").default(false),
   isDeleted: boolean("is_deleted").default(false),
-  category: text("category").notNull().default('Goals'),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

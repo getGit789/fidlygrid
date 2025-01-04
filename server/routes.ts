@@ -9,33 +9,6 @@ export function registerRoutes(app: Express) {
     next();
   });
 
-  // Debug endpoint to check table structure
-  app.get("/api/debug/schema", async (_req, res) => {
-    try {
-      const taskSchema = await sql`
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns
-        WHERE table_name = 'tasks'
-        ORDER BY ordinal_position;
-      `;
-      
-      const goalSchema = await sql`
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns
-        WHERE table_name = 'goals'
-        ORDER BY ordinal_position;
-      `;
-      
-      res.json({
-        tasks: taskSchema,
-        goals: goalSchema
-      });
-    } catch (error: any) {
-      console.error("Error fetching schema:", error);
-      res.status(500).json({ error: "Failed to fetch schema" });
-    }
-  });
-
   // Tasks API endpoints
   app.get("/api/tasks", async (_req, res) => {
     try {
@@ -81,7 +54,6 @@ export function registerRoutes(app: Express) {
           completed, 
           is_favorite, 
           is_deleted,
-          category,
           created_at,
           updated_at
         ) VALUES (
@@ -90,7 +62,6 @@ export function registerRoutes(app: Express) {
           false, 
           false, 
           false,
-          'Tasks',
           NOW(),
           NOW()
         ) 
@@ -162,7 +133,6 @@ export function registerRoutes(app: Express) {
           completed, 
           is_favorite, 
           is_deleted,
-          category,
           created_at,
           updated_at
         ) VALUES (
@@ -171,7 +141,6 @@ export function registerRoutes(app: Express) {
           false, 
           false, 
           false,
-          'Goals',
           NOW(),
           NOW()
         ) 

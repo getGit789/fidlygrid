@@ -4,34 +4,18 @@ import { join } from "path";
 
 async function runMigrations() {
   try {
-    console.log("Starting migrations...");
+    console.log("Starting fresh with minimal schema...");
 
-    // Drop existing tables if they exist
-    console.log("Dropping existing tables...");
-    await sql`
-      DROP TABLE IF EXISTS tasks CASCADE;
-      DROP TABLE IF EXISTS goals CASCADE;
-    `;
-
-    // Read and execute the initial migration
-    console.log("Creating fresh tables...");
-    const initialMigration = readFileSync(
-      join(process.cwd(), "drizzle", "0000_free_pretty_boy.sql"),
+    // Read and execute the minimal schema
+    const minimalSchema = readFileSync(
+      join(process.cwd(), "drizzle", "0003_minimal.sql"),
       "utf-8"
     );
-    await sql.unsafe(initialMigration);
+    await sql.unsafe(minimalSchema);
 
-    // Read and execute the fresh start migration
-    console.log("Applying fresh start migration...");
-    const freshStartMigration = readFileSync(
-      join(process.cwd(), "drizzle", "0002_fresh_start.sql"),
-      "utf-8"
-    );
-    await sql.unsafe(freshStartMigration);
-
-    console.log("All migrations completed successfully");
+    console.log("Schema created successfully");
   } catch (error) {
-    console.error("Error running migrations:", error);
+    console.error("Error creating schema:", error);
     process.exit(1);
   }
 }
