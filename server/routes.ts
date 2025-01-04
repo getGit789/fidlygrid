@@ -81,6 +81,7 @@ export function registerRoutes(app: Express) {
           completed, 
           is_favorite, 
           is_deleted,
+          category,
           created_at,
           updated_at
         ) VALUES (
@@ -89,6 +90,7 @@ export function registerRoutes(app: Express) {
           false, 
           false, 
           false,
+          'Tasks',
           NOW(),
           NOW()
         ) 
@@ -160,6 +162,7 @@ export function registerRoutes(app: Express) {
           completed, 
           is_favorite, 
           is_deleted,
+          category,
           created_at,
           updated_at
         ) VALUES (
@@ -168,6 +171,7 @@ export function registerRoutes(app: Express) {
           false, 
           false, 
           false,
+          'Goals',
           NOW(),
           NOW()
         ) 
