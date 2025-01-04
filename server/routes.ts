@@ -3,6 +3,12 @@ import { db, sql } from "../db/index.js";
 import { tasks, goals } from "../db/schema.js";
 
 export function registerRoutes(app: Express) {
+  // Add cache control middleware for API routes
+  app.use("/api", (_req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+  });
+
   // Debug endpoint to check table structure
   app.get("/api/debug/schema", async (_req, res) => {
     try {
