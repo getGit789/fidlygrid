@@ -68,20 +68,11 @@ export function registerRoutes(app: Express) {
         });
       }
 
-      // First, let's verify the table structure
-      const tableInfo = await sql`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'tasks';
-      `;
-      console.log("Table structure:", tableInfo);
-
-      // Then attempt the insert
       const result = await sql`
         INSERT INTO tasks (
           title, 
           emoji,
-          is_completed, 
+          completed, 
           is_favorite, 
           is_deleted,
           created_at,
@@ -156,19 +147,11 @@ export function registerRoutes(app: Express) {
         });
       }
 
-      // First, let's verify the table structure
-      const tableInfo = await sql`
-        SELECT column_name, data_type 
-        FROM information_schema.columns 
-        WHERE table_name = 'goals';
-      `;
-      console.log("Table structure:", tableInfo);
-
       const result = await sql`
         INSERT INTO goals (
           title, 
           emoji,
-          is_completed, 
+          completed, 
           is_favorite, 
           is_deleted,
           created_at,
