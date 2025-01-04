@@ -12,7 +12,8 @@
     "check": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
