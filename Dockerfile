@@ -6,8 +6,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies and global packages
+RUN npm ci && \
+    npm install -g typescript tsc-alias
 
 # Copy source files
 COPY . .
