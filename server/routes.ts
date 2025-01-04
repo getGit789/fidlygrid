@@ -1,331 +1,153 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { db } from "../db/index.js";
-import { tasks, goals, workspaces } from "../db/schema.js";
-import { eq } from "drizzle-orm";
-import fs from "fs";
-import path from "path";
-import archiver from "archiver";
-import { PostgresError } from "postgres";
+import { db, sql } from "../db/index.js";
+import { tasks, goals } from "../db/schema.js";
 
-interface ErrorWithDetails {
-  name?: string;
-  code?: string;
-  detail?: string;
-  table?: string;
-  constraint?: string;
-  stack?: string;
-  message?: string;
-  constructor?: { name: string };
-}
-
-export function registerRoutes(app: Express): Server {
-  // Download project endpoint
-  app.get("/api/download", (req, res) => {
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // Maximum compression
-    });
-
-    res.attachment('fidlygrid-project.zip');
-    archive.pipe(res);
-
-    // Add project files to the archive
-    const filesToInclude = [
-      'client',
-      'server',
-      'db',
-      'theme.json',
-      'package.json',
-      'tsconfig.json',
-      'vite.config.ts',
-      'tailwind.config.ts',
-      'postcss.config.js',
-      'drizzle.config.ts'
-    ];
-
-    filesToInclude.forEach(file => {
-      const filePath = path.join(process.cwd(), file);
-      if (fs.existsSync(filePath)) {
-        if (fs.statSync(filePath).isDirectory()) {
-          archive.directory(filePath, file);
-        } else {
-          archive.file(filePath, { name: file });
-        }
-      }
-    });
-
-    archive.finalize();
-  });
-
-  // Theme API endpoint
-  app.post("/api/theme", async (req, res) => {
-    try {
-      const { appearance } = req.body;
-
-      if (!['light', 'dark'].includes(appearance)) {
-        return res.status(400).json({ error: "Invalid theme value" });
-      }
-
-      const themeFilePath = path.resolve(process.cwd(), 'theme.json');
-      const currentTheme = JSON.parse(fs.readFileSync(themeFilePath, 'utf8'));
-
-      const newTheme = {
-        ...currentTheme,
-        appearance
-      };
-
-      fs.writeFileSync(themeFilePath, JSON.stringify(newTheme, null, 2));
-      res.json(newTheme);
-    } catch (error) {
-      console.error("Error updating theme:", error);
-      res.status(500).json({ error: "Failed to update theme" });
-    }
-  });
-
+export function registerRoutes(app: Express) {
   // Tasks API endpoints
   app.get("/api/tasks", async (_req, res) => {
     try {
-      const allTasks = await db.select().from(tasks);
-      res.json(allTasks);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ error: "Failed to fetch tasks" });
+      console.log("Fetching tasks...");
+      const result = await sql`
+        SELECT * FROM tasks 
+        WHERE deleted = false 
+        ORDER BY created_at DESC
+      `;
+      console.log("Tasks fetched:", result);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching tasks:", {
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
+        hint: error.hint,
+        where: error.where
+      });
+      res.status(500).json({ 
+        error: "Failed to fetch tasks",
+        details: error.message
+      });
     }
   });
 
   app.post("/api/tasks", async (req, res) => {
-    console.log("Received task creation request:", req.body);
     try {
       const { title, category } = req.body;
+      console.log("Creating task:", { title, category });
       
-      // Validate input
       if (!title || !category) {
-        console.log("Validation failed:", { title, category });
         return res.status(400).json({ 
           error: "Title and category are required",
           received: { title, category }
         });
       }
-      
-      // Log the exact SQL query
-      console.log("Attempting to insert task with values:", { 
-        title, 
-        category,
-        completed: false,
-        favorite: false,
-        deleted: false,
-        workspaceId: null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
 
-      // Attempt database insert
-      try {
-        const [task] = await db
-          .insert(tasks)
-          .values({ 
-            title, 
-            category,
-            completed: false,
-            favorite: false,
-            deleted: false,
-            workspaceId: null
-          })
-          .returning();
-        console.log("Task created successfully:", task);
-        res.json(task);
-      } catch (dbError) {
-        const err = dbError as ErrorWithDetails;
-        console.error("Database error during task creation:", {
-          error: err,
-          errorName: err.name,
-          errorCode: err.code,
-          detail: err.detail,
-          table: err.table,
-          constraint: err.constraint,
-          stack: err.stack
-        });
-        throw err;
-      }
-    } catch (error) {
-      const err = error as ErrorWithDetails;
+      const result = await sql`
+        INSERT INTO tasks (
+          title, 
+          category, 
+          completed, 
+          favorite, 
+          deleted
+        ) VALUES (
+          ${title}, 
+          ${category}, 
+          false, 
+          false, 
+          false
+        ) 
+        RETURNING *
+      `;
+      
+      console.log("Task created:", result[0]);
+      res.json(result[0]);
+    } catch (error: any) {
       console.error("Error creating task:", {
-        error: err,
-        type: err.constructor?.name,
-        body: req.body,
-        stack: err.stack,
-        message: err.message,
-        code: err.code,
-        detail: err.detail
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
+        hint: error.hint,
+        where: error.where,
+        body: req.body
       });
       res.status(500).json({ 
-        error: "Failed to create task", 
-        details: err.message,
-        code: err.code,
-        requestBody: req.body
+        error: "Failed to create task",
+        details: error.message
       });
-    }
-  });
-
-  app.patch("/api/tasks/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-      const updatedTask = await db
-        .update(tasks)
-        .set(updates)
-        .where(eq(tasks.id, parseInt(id)))
-        .returning();
-      res.json(updatedTask[0]);
-    } catch (error) {
-      console.error("Error updating task:", error);
-      res.status(500).json({ error: "Failed to update task" });
-    }
-  });
-
-  app.delete("/api/tasks/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updatedTask = await db
-        .update(tasks)
-        .set({ deleted: true, updatedAt: new Date() })
-        .where(eq(tasks.id, parseInt(id)))
-        .returning();
-      res.json(updatedTask[0]);
-    } catch (error) {
-      console.error("Error updating task:", error);
-      res.status(500).json({ error: "Failed to update task" });
-    }
-  });
-
-  app.delete("/api/tasks/:id/permanent", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await db.delete(tasks).where(eq(tasks.id, parseInt(id)));
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error permanently deleting task:", error);
-      res.status(500).json({ error: "Failed to permanently delete task" });
     }
   });
 
   // Goals API endpoints
   app.get("/api/goals", async (_req, res) => {
     try {
-      const allGoals = await db.select().from(goals);
-      res.json(allGoals);
-    } catch (error) {
-      console.error("Error fetching goals:", error);
-      res.status(500).json({ error: "Failed to fetch goals" });
+      console.log("Fetching goals...");
+      const result = await sql`
+        SELECT * FROM goals 
+        WHERE deleted = false 
+        ORDER BY created_at DESC
+      `;
+      console.log("Goals fetched:", result);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching goals:", {
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
+        hint: error.hint,
+        where: error.where
+      });
+      res.status(500).json({ 
+        error: "Failed to fetch goals",
+        details: error.message
+      });
     }
   });
 
   app.post("/api/goals", async (req, res) => {
     try {
       const { title, category } = req.body;
-      const [goal] = await db
-        .insert(goals)
-        .values({
-          title,
-          category,
-          completed: false,
-          favorite: false,
-          deleted: false
-        })
-        .returning();
-      res.json(goal);
-    } catch (error) {
-      console.error("Error creating goal:", error);
-      res.status(500).json({ error: "Failed to create goal" });
-    }
-  });
+      console.log("Creating goal:", { title, category });
 
-  app.patch("/api/goals/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-      const updatedGoal = await db
-        .update(goals)
-        .set({
-          ...updates,
-          updatedAt: new Date(),
-        })
-        .where(eq(goals.id, parseInt(id)))
-        .returning();
-      res.json(updatedGoal[0]);
-    } catch (error) {
-      console.error("Error updating goal:", error);
-      res.status(500).json({ error: "Failed to update goal" });
-    }
-  });
-
-  app.delete("/api/goals/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updatedGoal = await db
-        .update(goals)
-        .set({ deleted: true, updatedAt: new Date() })
-        .where(eq(goals.id, parseInt(id)))
-        .returning();
-      res.json(updatedGoal[0]);
-    } catch (error) {
-      console.error("Error updating goal:", error);
-      res.status(500).json({ error: "Failed to update goal" });
-    }
-  });
-
-  app.delete("/api/goals/:id/permanent", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await db.delete(goals).where(eq(goals.id, parseInt(id)));
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error permanently deleting goal:", error);
-      res.status(500).json({ error: "Failed to permanently delete goal" });
-    }
-  });
-
-  // Workspace routes
-  app.get("/api/workspaces", async (_req, res) => {
-    try {
-      const allWorkspaces = await db.select().from(workspaces);
-      res.json(allWorkspaces);
-    } catch (error) {
-      console.error("Error fetching workspaces:", error);
-      res.status(500).json({ error: "Failed to fetch workspaces" });
-    }
-  });
-
-  app.post("/api/workspaces", async (req, res) => {
-    try {
-      console.log("Received workspace creation request:", req.body);
-      const { name } = req.body;
-      
-      if (!name) {
-        console.log("Name is missing in request");
-        return res.status(400).json({ error: "Name is required" });
+      if (!title || !category) {
+        return res.status(400).json({ 
+          error: "Title and category are required",
+          received: { title, category }
+        });
       }
 
-      console.log("Creating workspace with name:", name);
-      const [workspace] = await db
-        .insert(workspaces)
-        .values({ name })
-        .returning();
+      const result = await sql`
+        INSERT INTO goals (
+          title, 
+          category, 
+          completed, 
+          favorite, 
+          deleted
+        ) VALUES (
+          ${title}, 
+          ${category}, 
+          false, 
+          false, 
+          false
+        ) 
+        RETURNING *
+      `;
       
-      console.log("Created workspace:", workspace);
-      res.json(workspace);
-    } catch (error) {
-      console.error("Error creating workspace:", error);
-      res.status(500).json({ error: "Failed to create workspace" });
+      console.log("Goal created:", result[0]);
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error("Error creating goal:", {
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
+        hint: error.hint,
+        where: error.where,
+        body: req.body
+      });
+      res.status(500).json({ 
+        error: "Failed to create goal",
+        details: error.message
+      });
     }
   });
 
-  app.delete("/api/workspaces/:id", async (req, res) => {
-    const { id } = req.params;
-    await db.delete(workspaces).where(eq(workspaces.id, parseInt(id)));
-    res.json({ success: true });
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
+  return app;
 }
