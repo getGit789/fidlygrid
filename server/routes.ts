@@ -1,11 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "@db";
-import { tasks, goals, workspaces } from "@db/schema";
+import { db } from "../db/index.js";
+import { tasks, goals, workspaces } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import archiver from "archiver";
+import { PostgresError } from "postgres";
+
+interface ErrorWithDetails {
+  name?: string;
+  code?: string;
+  detail?: string;
+  table?: string;
+  constraint?: string;
+  stack?: string;
+  message?: string;
+  constructor?: { name: string };
+}
 
 export function registerRoutes(app: Express): Server {
   // Download project endpoint
@@ -82,23 +94,76 @@ export function registerRoutes(app: Express): Server {
   });
 
   app.post("/api/tasks", async (req, res) => {
+    console.log("Received task creation request:", req.body);
     try {
       const { title, category } = req.body;
-      const [task] = await db
-        .insert(tasks)
-        .values({ 
-          title, 
-          category,
-          completed: false,
-          favorite: false,
-          deleted: false,
-          workspaceId: null
-        })
-        .returning();
-      res.json(task);
+      
+      // Validate input
+      if (!title || !category) {
+        console.log("Validation failed:", { title, category });
+        return res.status(400).json({ 
+          error: "Title and category are required",
+          received: { title, category }
+        });
+      }
+      
+      // Log the exact SQL query
+      console.log("Attempting to insert task with values:", { 
+        title, 
+        category,
+        completed: false,
+        favorite: false,
+        deleted: false,
+        workspaceId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // Attempt database insert
+      try {
+        const [task] = await db
+          .insert(tasks)
+          .values({ 
+            title, 
+            category,
+            completed: false,
+            favorite: false,
+            deleted: false,
+            workspaceId: null
+          })
+          .returning();
+        console.log("Task created successfully:", task);
+        res.json(task);
+      } catch (dbError) {
+        const err = dbError as ErrorWithDetails;
+        console.error("Database error during task creation:", {
+          error: err,
+          errorName: err.name,
+          errorCode: err.code,
+          detail: err.detail,
+          table: err.table,
+          constraint: err.constraint,
+          stack: err.stack
+        });
+        throw err;
+      }
     } catch (error) {
-      console.error("Error creating task:", error);
-      res.status(500).json({ error: "Failed to create task" });
+      const err = error as ErrorWithDetails;
+      console.error("Error creating task:", {
+        error: err,
+        type: err.constructor?.name,
+        body: req.body,
+        stack: err.stack,
+        message: err.message,
+        code: err.code,
+        detail: err.detail
+      });
+      res.status(500).json({ 
+        error: "Failed to create task", 
+        details: err.message,
+        code: err.code,
+        requestBody: req.body
+      });
     }
   });
 

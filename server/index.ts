@@ -1,14 +1,27 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { db } from "@db/index";
+import { registerRoutes } from "./routes.js";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+import { db } from "../db/index.js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { sql } from 'drizzle-orm';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+const PORT = parseInt(process.env.PORT || "8080", 10);
+const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server running in ${process.env.NODE_ENV} mode on http://${HOST}:${PORT}`);
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -27,50 +40,64 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
-      log(logLine);
+      console.log(logLine);
     }
   });
-
   next();
 });
 
 async function main() {
-  // Run migrations
   try {
-    console.log("Running migrations...");
-    await migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("Migrations completed");
+    console.log("Checking database state...");
+    const tablesExist = await db.execute(sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'goals'
+      );
+    `);
+    
+    if (!tablesExist[0].exists) {
+      console.log("Tables don't exist, running migrations...");
+      await migrate(db, { migrationsFolder: "./drizzle" });
+      console.log("Migrations completed successfully");
+    } else {
+      console.log("Tables already exist, skipping migrations");
+    }
   } catch (error) {
-    console.error("Error running migrations:", error);
+    console.error("Database setup error:", error);
   }
 
-  // Setup routes and middleware
-  app.use(express.json());
-  registerRoutes(app);
+  try {
+    console.log("Database check complete");
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Register API routes
+    registerRoutes(app);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    if (process.env.NODE_ENV === 'development') {
+      // In development, use Vite's dev server
+      const { setupVite } = await import('./vite.js');
+      await setupVite(app, server);
+    } else {
+      // In production, serve static files
+      const publicPath = path.resolve(__dirname, '../../dist/public');
+      console.log('Serving static files from:', publicPath);
+      app.use(express.static(publicPath));
+      
+      // Handle client-side routing
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(publicPath, 'index.html'));
+      });
+    }
 
-  if (app.get("env") === "development") {
-    await setupVite(app, registerRoutes(app));
-  } else {
-    serveStatic(app);
+    console.log(`Server running in ${process.env.NODE_ENV} mode`);
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
   }
-
-  const PORT = parseInt(process.env.PORT || "5000", 10);
-  app.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
-  });
 }
 
 main().catch(console.error);
