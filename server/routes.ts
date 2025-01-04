@@ -3,6 +3,33 @@ import { db, sql } from "../db/index.js";
 import { tasks, goals } from "../db/schema.js";
 
 export function registerRoutes(app: Express) {
+  // Debug endpoint to check table structure
+  app.get("/api/debug/schema", async (_req, res) => {
+    try {
+      const taskSchema = await sql`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'tasks'
+        ORDER BY ordinal_position;
+      `;
+      
+      const goalSchema = await sql`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_name = 'goals'
+        ORDER BY ordinal_position;
+      `;
+      
+      res.json({
+        tasks: taskSchema,
+        goals: goalSchema
+      });
+    } catch (error: any) {
+      console.error("Error fetching schema:", error);
+      res.status(500).json({ error: "Failed to fetch schema" });
+    }
+  });
+
   // Tasks API endpoints
   app.get("/api/tasks", async (_req, res) => {
     try {
@@ -32,28 +59,41 @@ export function registerRoutes(app: Express) {
   app.post("/api/tasks", async (req, res) => {
     try {
       const { title, emoji = null } = req.body;
-      console.log("Creating task:", { title, emoji });
+      console.log("Creating task with data:", req.body);
       
       if (!title) {
         return res.status(400).json({ 
           error: "Title is required",
-          received: { title, emoji }
+          received: req.body
         });
       }
 
+      // First, let's verify the table structure
+      const tableInfo = await sql`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'tasks';
+      `;
+      console.log("Table structure:", tableInfo);
+
+      // Then attempt the insert
       const result = await sql`
         INSERT INTO tasks (
           title, 
           emoji,
           is_completed, 
           is_favorite, 
-          is_deleted
+          is_deleted,
+          created_at,
+          updated_at
         ) VALUES (
           ${title}, 
           ${emoji},
           false, 
           false, 
-          false
+          false,
+          NOW(),
+          NOW()
         ) 
         RETURNING *
       `;
@@ -67,11 +107,13 @@ export function registerRoutes(app: Express) {
         detail: error.detail,
         hint: error.hint,
         where: error.where,
-        body: req.body
+        body: req.body,
+        stack: error.stack
       });
       res.status(500).json({ 
         error: "Failed to create task",
-        details: error.message
+        details: error.message,
+        code: error.code
       });
     }
   });
@@ -105,14 +147,22 @@ export function registerRoutes(app: Express) {
   app.post("/api/goals", async (req, res) => {
     try {
       const { title, emoji = null } = req.body;
-      console.log("Creating goal:", { title, emoji });
+      console.log("Creating goal with data:", req.body);
 
       if (!title) {
         return res.status(400).json({ 
           error: "Title is required",
-          received: { title, emoji }
+          received: req.body
         });
       }
+
+      // First, let's verify the table structure
+      const tableInfo = await sql`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'goals';
+      `;
+      console.log("Table structure:", tableInfo);
 
       const result = await sql`
         INSERT INTO goals (
@@ -120,13 +170,17 @@ export function registerRoutes(app: Express) {
           emoji,
           is_completed, 
           is_favorite, 
-          is_deleted
+          is_deleted,
+          created_at,
+          updated_at
         ) VALUES (
           ${title}, 
           ${emoji},
           false, 
           false, 
-          false
+          false,
+          NOW(),
+          NOW()
         ) 
         RETURNING *
       `;
@@ -140,11 +194,13 @@ export function registerRoutes(app: Express) {
         detail: error.detail,
         hint: error.hint,
         where: error.where,
-        body: req.body
+        body: req.body,
+        stack: error.stack
       });
       res.status(500).json({ 
         error: "Failed to create goal",
-        details: error.message
+        details: error.message,
+        code: error.code
       });
     }
   });
