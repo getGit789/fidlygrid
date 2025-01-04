@@ -31,26 +31,26 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/tasks", async (req, res) => {
     try {
-      const { title, category } = req.body;
-      console.log("Creating task:", { title, category });
+      const { title, emoji = null } = req.body;
+      console.log("Creating task:", { title, emoji });
       
-      if (!title || !category) {
+      if (!title) {
         return res.status(400).json({ 
-          error: "Title and category are required",
-          received: { title, category }
+          error: "Title is required",
+          received: { title, emoji }
         });
       }
 
       const result = await sql`
         INSERT INTO tasks (
           title, 
-          category, 
+          emoji,
           is_completed, 
           is_favorite, 
           is_deleted
         ) VALUES (
           ${title}, 
-          ${category}, 
+          ${emoji},
           false, 
           false, 
           false
@@ -104,26 +104,26 @@ export function registerRoutes(app: Express) {
 
   app.post("/api/goals", async (req, res) => {
     try {
-      const { title, category } = req.body;
-      console.log("Creating goal:", { title, category });
+      const { title, emoji = null } = req.body;
+      console.log("Creating goal:", { title, emoji });
 
-      if (!title || !category) {
+      if (!title) {
         return res.status(400).json({ 
-          error: "Title and category are required",
-          received: { title, category }
+          error: "Title is required",
+          received: { title, emoji }
         });
       }
 
       const result = await sql`
         INSERT INTO goals (
           title, 
-          category, 
+          emoji,
           is_completed, 
           is_favorite, 
           is_deleted
         ) VALUES (
           ${title}, 
-          ${category}, 
+          ${emoji},
           false, 
           false, 
           false

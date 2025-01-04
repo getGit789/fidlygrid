@@ -11,8 +11,8 @@ export const workspaces = pgTable("workspaces", {
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
+  emoji: text("emoji"),
   isCompleted: boolean("is_completed").default(false),
-  category: text("category").notNull(),
   isFavorite: boolean("is_favorite").default(false),
   isDeleted: boolean("is_deleted").default(false),
   workspaceId: integer("workspace_id").references(() => workspaces.id),
@@ -23,7 +23,7 @@ export const tasks = pgTable("tasks", {
 export const goals = pgTable("goals", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
-  category: text("category").notNull(),
+  emoji: text("emoji"),
   isCompleted: boolean("is_completed").default(false),
   isFavorite: boolean("is_favorite").default(false),
   isDeleted: boolean("is_deleted").default(false),
