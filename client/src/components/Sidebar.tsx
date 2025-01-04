@@ -35,8 +35,8 @@ export default function Sidebar({ selectedCategory, onSelectCategory }: SidebarP
   });
 
   // Update counts
-  const taskCount = tasks.filter(task => !task.deleted && task.category === "Tasks").length;
-  const goalCount = goals.filter(goal => !goal.deleted && goal.category === "Goals").length;
+  const taskCount = tasks.filter(task => !task.deleted).length;
+  const goalCount = goals.filter(goal => !goal.deleted).length;
   const favoriteCount = [
     ...tasks.filter(task => task.favorite && !task.deleted),
     ...goals.filter(goal => goal.favorite && !goal.deleted)

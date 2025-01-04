@@ -58,7 +58,6 @@ export default function TaskList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           title,
-          category: "Tasks",
           completed: false,
           favorite: false,
           deleted: false,
@@ -216,9 +215,7 @@ export default function TaskList({
     if (category === "Trash") {
       return task.deleted;
     }
-    const shouldShow = !task.deleted && task.category === "Tasks";
-    console.log('Task:', task, 'Should show:', shouldShow);
-    return shouldShow;
+    return !task.deleted;
   });
 
   console.log('Filtered tasks:', filteredTasks);

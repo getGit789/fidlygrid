@@ -63,21 +63,18 @@ export default function Goals({
       console.log('Goal:', goal, 'Show in Trash:', shouldShow);
       return shouldShow;
     }
-    const shouldShow = !goal.deleted && goal.category === "Goals";
-    console.log('Goal:', goal, 'Show in Goals:', shouldShow);
-    return shouldShow;
+    return !goal.deleted;
   });
 
   console.log('Filtered goals:', filteredGoals);
 
   const createGoal = useMutation({
-    mutationFn: async ({ title, category }: { title: string; category: string }) => {
+    mutationFn: async ({ title }: { title: string }) => {
       const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           title,
-          category,
           completed: false,
           favorite: false,
           deleted: false
@@ -151,8 +148,7 @@ export default function Goals({
   const handleCreateGoal = (text: string) => {
     if (text.trim()) {
       createGoal.mutate({ 
-        title: text.trim(), 
-        category: "Goals" 
+        title: text.trim() 
       });
     }
   };
